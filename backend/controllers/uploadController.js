@@ -1,0 +1,12 @@
+
+const Product = require('../model/productSchema')
+
+const uploadImage = (req,res) =>{
+    res.json({
+        success : 1,
+        image_url : `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+
+    })
+}
+
+module.exports = uploadImage;
