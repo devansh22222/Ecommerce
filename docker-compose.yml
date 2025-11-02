@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:6
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+  backend:
+    image: ${IMAGE_NAMESPACE}-backend:${CI_COMMIT_SHORT_SHA}
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=${MONGO_URI}
+      - PORT=5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    restart: always
+
+  frontend:
+    image: ${IMAGE_NAMESPACE}-frontend:${CI_COMMIT_SHORT_SHA}
+    ports:
+      - "80:80"
+    restart: always
+
+  admin:
+    image: ${IMAGE_NAMESPACE}-admin:${CI_COMMIT_SHORT_SHA}
+    ports:
+      - "8080:8080"
+    restart: always
+
+volumes:
+  mongo_data:
