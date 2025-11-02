@@ -1,0 +1,56 @@
+stages:
+  - validate
+  - build
+  - deploy
+
+# -------- VALIDATE STAGE ----------
+validate_code:
+  image: node:18
+  stage: validate
+  script:
+    - echo "🧹 Installing dependencies and running lint checks..."
+    - cd frontend
+    - npm install
+    - npm run lint || echo "Lint warnings ignored"
+    - cd ../backend
+    - npm install
+    - npm run lint || echo "Lint warnings ignored"
+  only:
+    - branches
+
+# -------- BUILD STAGE ----------
+build_frontend:
+  image: node:18
+  stage: build
+  script:
+    - echo "🏗️ Building React app..."
+    - cd frontend
+    - npm install
+    - npm run build
+    - cd ..
+  artifacts:
+    paths:
+      - frontend/build
+    expire_in: 1 week
+  only:
+    - main
+
+# -------- DEPLOY STAGE ----------
+deploy_app:
+  image: node:18
+  stage: deploy
+  script:
+    - echo "🚀 Deploying to production folder..."
+    - mkdir -p public
+    - cp -r frontend/build/* public/
+    - cd backend
+    - npm install
+    - echo "Starting backend..."
+    # Add your deployment command here, for example:
+    # node server.js
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  only:
+    - main
