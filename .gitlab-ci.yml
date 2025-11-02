@@ -3,7 +3,6 @@ stages:
   - build
   - deploy
 
-# -------- VALIDATE STAGE ----------
 validate_code:
   image: node:18
   stage: validate
@@ -18,7 +17,6 @@ validate_code:
   only:
     - branches
 
-# -------- BUILD STAGE ----------
 build_frontend:
   image: node:18
   stage: build
@@ -33,9 +31,8 @@ build_frontend:
       - frontend/build
     expire_in: 1 week
   only:
-    - main
+    - branches
 
-# -------- DEPLOY STAGE ----------
 deploy_app:
   image: node:18
   stage: deploy
@@ -46,11 +43,9 @@ deploy_app:
     - cd backend
     - npm install
     - echo "Starting backend..."
-    # Add your deployment command here, for example:
-    # node server.js
   artifacts:
     paths:
       - public
     expire_in: 1 week
   only:
-    - main
+    - branches
