@@ -39,18 +39,16 @@ build_frontend:
 deploy_app:
   image: node:18
   stage: deploy
-  needs: ["build_frontend"]   # 👈 ensures build artifacts are available
+  dependencies:
+    - build_frontend   # 👈 explicitly fetch artifacts from build job
   script:
     - echo "🚀 Deploying to production folder..."
+    - ls -la frontend/build || echo "❌ Build folder missing"
     - mkdir -p public
     - cp -r frontend/build/* public/
     - cd backend
     - npm install
-    - echo "Starting backend..."
-    # node server.js or pm2 start server.js
-  artifacts:
-    paths:
-      - public
-    expire_in: 1 week
+    - echo "✅ Deployment stage complete (server start command can be added here)"
+    # node server.js or pm2 start server.js if you host backend
   only:
     - main
