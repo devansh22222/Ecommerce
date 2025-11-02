@@ -3,52 +3,36 @@ stages:
   - build
   - deploy
 
-# -------- VALIDATE STAGE ----------
 validate_code:
   image: node:18
   stage: validate
   script:
-    - echo "🧹 Installing dependencies and running lint checks..."
-    - cd frontend
-    - npm install
-    - npm run lint || echo "Lint warnings ignored"
-    - cd ../backend
-    - npm install
-    - npm run lint || echo "Lint warnings ignored"
-  only:
-    - branches
+    - echo "🔍 Validating code..."
+    - npm install -g eslint
+    - eslint .
 
-# -------- BUILD STAGE ----------
 build_frontend:
   image: node:18
   stage: build
   script:
-    - echo "🏗️ Building React app..."
+    - echo "🏗️ Building Vite frontend..."
     - cd frontend
     - npm install
     - npm run build
-    - cd ..
   artifacts:
     paths:
-      - frontend/build
-    expire_in: 1 week
-  only:
-    - main
+      - frontend/dist
+    expire_in: 1 hour
 
-# -------- DEPLOY STAGE ----------
 deploy_app:
   image: node:18
   stage: deploy
   dependencies:
-    - build_frontend   # 👈 explicitly fetch artifacts from build job
+    - build_frontend
   script:
-    - echo "🚀 Deploying to production folder..."
-    - ls -la frontend/build || echo "❌ Build folder missing"
+    - echo "🚀 Deploying full MERN app..."
     - mkdir -p public
-    - cp -r frontend/build/* public/
+    - cp -r frontend/dist/* public/
     - cd backend
     - npm install
-    - echo "✅ Deployment stage complete (server start command can be added here)"
-    # node server.js or pm2 start server.js if you host backend
-  only:
-    - main
+    - node server.js
