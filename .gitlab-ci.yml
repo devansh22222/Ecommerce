@@ -3,6 +3,7 @@ stages:
   - build
   - deploy
 
+# -------- VALIDATE STAGE ----------
 validate_code:
   image: node:18
   stage: validate
@@ -17,6 +18,7 @@ validate_code:
   only:
     - branches
 
+# -------- BUILD STAGE ----------
 build_frontend:
   image: node:18
   stage: build
@@ -31,11 +33,13 @@ build_frontend:
       - frontend/build
     expire_in: 1 week
   only:
-    - branches
+    - main
 
+# -------- DEPLOY STAGE ----------
 deploy_app:
   image: node:18
   stage: deploy
+  needs: ["build_frontend"]   # 👈 ensures build artifacts are available
   script:
     - echo "🚀 Deploying to production folder..."
     - mkdir -p public
@@ -43,9 +47,10 @@ deploy_app:
     - cd backend
     - npm install
     - echo "Starting backend..."
+    # node server.js or pm2 start server.js
   artifacts:
     paths:
       - public
     expire_in: 1 week
   only:
-    - branches
+    - main
