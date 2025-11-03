@@ -8,11 +8,17 @@ validate_code:
   image: node:18
   stage: validate
   script:
-    - echo "✅ Checking if frontend and backend install properly..."
+    - echo "🔍 Checking project setup..."
+    # Frontend validation
     - cd frontend
     - npm install
-    - cd ../backend
+    - npx eslint . --ext .js,.jsx --max-warnings=0 || (echo "❌ Lint errors in frontend!" && exit 1)
+    - cd ..
+    # Backend validation
+    - cd backend
     - npm install
+    - npx eslint . --ext .js --max-warnings=0 || (echo "❌ Lint errors in backend!" && exit 1)
+    - cd ..
     - echo "✅ Validation successful!"
   only:
     - main
@@ -26,6 +32,8 @@ build_frontend:
     - cd frontend
     - npm install
     - npm run build
+    - cd ..
+    - echo "📦 Frontend build completed successfully!"
   artifacts:
     paths:
       - frontend/dist
@@ -40,12 +48,17 @@ deploy_app:
   dependencies:
     - build_frontend
   script:
-    - echo "🚀 Deploying MERN app..."
+    - echo "🚀 Preparing MERN app for deployment..."
+    # Create public folder and merge frontend build + backend code
     - mkdir -p public
     - cp -r frontend/dist/* public/
-    - cd backend
-    - npm install
-    - echo "✅ Backend ready for deployment (start command can be added)"
-    # node server.js  <-- uncomment this if your backend should start
+    - mkdir -p deployment/backend
+    - cp -r backend/* deployment/backend/
+    - echo "✅ Frontend and backend combined successfully!"
+  artifacts:
+    paths:
+      - public
+      - deployment
+    expire_in: 1 week
   only:
     - main
