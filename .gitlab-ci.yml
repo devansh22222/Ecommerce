@@ -8,12 +8,26 @@ validate_code:
   image: node:18
   stage: validate
   script:
-    - echo "✅ Checking if frontend and backend install properly..."
+    - echo "🔍 Running syntax & lint checks..."
+
+    # --- Frontend validation ---
     - cd frontend
     - npm install
-    - cd ../backend
+    # Check for JSX/React syntax errors
+    - npx eslint . --ext .js,.jsx --max-warnings=0 || (echo "❌ Lint errors in frontend!" && exit 1)
+    # Optional: check build syntax without running full build
+    - npx tsc --noEmit || true  # only if using TypeScript
+    - cd ..
+
+    # --- Backend validation ---
+    - cd backend
     - npm install
+    # Check for syntax errors (missing brackets, etc.)
+    - npx eslint . --ext .js --max-warnings=0 || (echo "❌ Lint errors in backend!" && exit 1)
+    - cd ..
+
     - echo "✅ Validation successful!"
+
   only:
     - main
 
@@ -46,6 +60,6 @@ deploy_app:
     - cd backend
     - npm install
     - echo "✅ Backend ready for deployment (start command can be added)"
-    # node server.js  <-- uncomment this if your backend should start
+    # node server.js  <-- uncomment to actually run backend
   only:
     - main
