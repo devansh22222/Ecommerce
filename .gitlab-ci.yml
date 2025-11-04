@@ -1,64 +1,126 @@
+# This file is .gitlab-ci.yml
+
+# Define the stages of the pipeline
 stages:
-  - validate
   - build
+  - test
   - deploy
 
-# -------- VALIDATE STAGE ----------
-validate_code:
-  image: node:18
-  stage: validate
+# Define a cache for node_modules to speed up builds
+cache:
+  key:
+    files:
+      - backend/package-lock.json
+      - frontend/package-lock.json
+  paths:
+    - backend/node_modules/
+    - frontend/node_modules/
+  policy: pull-push # Pull cache at start, push at end if job succeeds
+
+variables:
+  # Use the GitLab Container Registry
+  # $CI_REGISTRY_IMAGE is a predefined variable
+  BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+  
+  # For Docker-in-Docker (dind) service
+  DOCKER_TLS_CERTDIR: "/certs"
+
+# ==================================
+#    BUILD STAGE
+# ==================================
+build_images:
+  stage: build
+  image: docker:20.10.16 # Use a Docker image to build Docker images
+  services:
+    - docker:20.10.16-dind # Docker-in-Docker
+  before_script:
+    # Log in to the GitLab Container Registry
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
-    - echo "🔍 Checking project setup..."
-    # Frontend validation
-    - cd frontend
-    - npm install
-    - npx eslint . --ext .js,.jsx --max-warnings=0 || (echo "❌ Lint errors in frontend!" && exit 1)
-    - cd ..
-    # Backend validation
+    # Build and push the backend image
+    - echo "Building backend image..."
+    - docker build -t $BACKEND_IMAGE ./backend
+    - docker push $BACKEND_IMAGE
+    
+    # Build and push the frontend image
+    - echo "Building frontend image..."
+    - docker build -t $FRONTEND_IMAGE ./frontend
+    - docker push $FRONTEND_IMAGE
+  only:
+    - main # Or 'master', only run this for the main branch
+
+# ==================================
+#    TEST STAGE
+# ==================================
+test_backend:
+  stage: test
+  image: node:18 # Use a Node.js image
+  services:
+    - mongo:latest # Start a MongoDB service for this job
+  variables:
+    # Tell the backend to connect to the service container
+    MONGO_URI: "mongodb://mongo:27017/testdb" 
+  before_script:
     - cd backend
     - npm install
-    - npx eslint . --ext .js --max-warnings=0 || (echo "❌ Lint errors in backend!" && exit 1)
-    - cd ..
-    - echo "✅ Validation successful!"
-  only:
-    - main
-
-# -------- BUILD STAGE ----------
-build_frontend:
-  image: node:18
-  stage: build
   script:
-    - echo "🏗️ Building Vite frontend..."
+    - npm test # Your test script in package.json
+
+test_frontend:
+  stage: test
+  image: node:18
+  before_script:
     - cd frontend
     - npm install
-    - npm run build
-    - cd ..
-    - echo "📦 Frontend build completed successfully!"
-  artifacts:
-    paths:
-      - frontend/dist
-    expire_in: 1 hour
-  only:
-    - main
-
-# -------- DEPLOY STAGE ----------
-deploy_app:
-  image: node:18
-  stage: deploy
-  dependencies:
-    - build_frontend
   script:
-    - echo "🚀 Preparing MERN app for deployment..."
-    # Create public folder and merge frontend build + backend code
-    - mkdir -p public
-    - cp -r frontend/dist/* public/
-    - mkdir -p deployment/backend
-    - cp -r backend/* deployment/backend/
-    - echo "✅ Frontend and backend combined successfully!"
-  artifacts:
-    paths:
-      - public
-      - deployment
-    expire_in: 1 week
+    # 'CI=true' makes React's test runner exit after running tests
+    - CI=true npm test 
+
+# ==================================
+#    DEPLOY STAGE
+# ==================================
+deploy_to_production:
+  stage: deploy
+  image: alpine:latest # A small image with an SSH client
+  environment:
+    name: production
+    url: http://your-server-ip.com # Optional: Link to your site
+  before_script:
+    # Install SSH client
+    - 'which ssh-agent || ( apk add --no-cache openssh-client )'
+    # Start the SSH agent
+    - eval $(ssh-agent -s)
+    # Add the SSH private key from the GitLab CI/CD variable
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    # Create SSH directory and add server's host key
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    # $SSH_SERVER_HOSTKEY must be set in GitLab variables
+    - echo "$SSH_SERVER_HOSTKEY" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # Connect to the server via SSH and run commands
+    # $SERVER_USER and $SERVER_IP are GitLab CI/CD variables
+    - |
+      ssh $SERVER_USER@$SERVER_IP "
+        cd /home/your-user/my-mern-app &&
+        
+        # Log in to GitLab registry on the server
+        echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY &&
+        
+        # Pass the new image tags to docker-compose
+        export BACKEND_IMAGE=$BACKEND_IMAGE &&
+        export FRONTEND_IMAGE=$FRONTEND_IMAGE &&
+        
+        # Pull the new images
+        docker-compose pull &&
+        
+        # Restart the services with the new images
+        docker-compose up -d &&
+
+        # Optional: Clean up old, unused Docker images
+        docker image prune -f
+      "
   only:
-    - main
+    - main # Only deploy when code is merged to main
