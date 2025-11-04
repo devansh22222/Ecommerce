@@ -11,6 +11,8 @@ build_frontend:
     - echo "🏗️ Building Vite frontend..."
     - cd frontend
     - npm install
+    # Ensure base path is relative for correct build
+    - echo "export default { base: './' }" > vite.config.js
     - npm run build
     - echo "📁 Build completed! Listing dist contents..."
     - ls -R dist || echo "❌ dist folder not found"
@@ -50,6 +52,6 @@ deploy_app:
     - cd backend
     - npm install
     - echo "✅ Backend ready for deployment (start command can be added)"
-    # node server.js  <-- uncomment if you want to start backend
+    # node server.js  <-- uncomment to actually start your backend
   only:
     - main
