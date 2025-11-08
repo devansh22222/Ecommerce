@@ -1,55 +1,62 @@
+# ----------------------------------------------------------
+# GitLab CI/CD for React + Vite Project
+# ----------------------------------------------------------
+
 stages:
+  - validate
   - build
   - test
   - deploy
 
-# -------- BUILD STAGE ----------
-build_frontend:
+# Stage 1: Validate (checks for missing tags, syntax, etc.)
+validate-code:
+  stage: validate
   image: node:18
-  stage: build
   script:
-    - echo "🏗️ Building Vite frontend..."
-    - cd frontend
-    - npm install
+    - npm ci
+    - echo "Running ESLint validation..."
+    # ESLint will catch syntax issues like unclosed tags or blocks
+    - npx eslint . --ext .js,.jsx --max-warnings=0
+  only:
+    - main
+
+# Stage 2: Build (builds production files)
+build-vite:
+  stage: build
+  image: node:18
+  script:
+    - npm ci
+    - echo "Building Vite project..."
     - npm run build
-    - echo "📁 Build completed! Listing dist contents..."
-    - ls -R dist || echo "❌ dist folder not found"
   artifacts:
     paths:
-      - frontend/dist
-    expire_in: 1 hour
+      - dist
   only:
     - main
 
-# -------- TEST STAGE ----------
-test_project:
-  image: node:18
+# Stage 3: Test (runs ESLint again to ensure clean code)
+test-lint:
   stage: test
+  image: node:18
   script:
-    - echo "🧪 Running tests for frontend and backend..."
-    - cd frontend
-    - npm install
-    - npm test || echo "⚠️ No frontend tests found"
-    - cd ../backend
-    - npm install
-    - npm test || echo "⚠️ No backend tests found"
-    - echo "✅ Test stage completed!"
+    - npm ci
+    - echo "Running lint test..."
+    - npx eslint src --ext .js,.jsx --max-warnings=0
   only:
     - main
 
-# -------- DEPLOY STAGE ----------
-deploy_app:
-  image: node:18
+# Stage 4: Deploy (to Railway)
+deploy-production:
   stage: deploy
-  dependencies:
-    - build_frontend
+  image: node:18
+  before_script:
+    - npm install -g railway
   script:
-    - echo "🚀 Deploying MERN app..."
-    - mkdir -p public
-    - cp -r frontend/dist/* public/
-    - cd backend
-    - npm install
-    - echo "✅ Backend ready for deployment (start command can be added)"
-    # node server.js  <-- uncomment if backend should actually start
+    - echo "Deploying to Railway..."
+    - railway up --service "$RAILWAY_SERVICE_ID" -d
+  environment:
+    name: production
+    url: $RAILWAY_PUBLIC_URL
   only:
     - main
+  when: manual
