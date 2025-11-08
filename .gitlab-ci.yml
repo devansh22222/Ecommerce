@@ -14,20 +14,20 @@ stages:
 ########################
 validate-code:
   stage: validate
-  image: node:18
+  image: node:20
   script:
     # Validate Admin
     - echo "🔍 Running ESLint validation for admin..."
     - cd admin
     - npm ci
-    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - npx eslint src --ext .js,.jsx --max-warnings=0
     - cd ..
 
     # Validate Frontend
     - echo "🔍 Running ESLint validation for frontend..."
     - cd frontend
     - npm ci
-    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - npx eslint src --ext .js,.jsx --max-warnings=0
     - cd ..
 
     # Validate Backend
@@ -43,7 +43,7 @@ validate-code:
 ########################
 build-apps:
   stage: build
-  image: node:18
+  image: node:20
   script:
     # Build Admin App
     - echo "🏗️ Building admin app..."
@@ -69,7 +69,7 @@ build-apps:
 ########################
 test-all:
   stage: test
-  image: node:18
+  image: node:20
   script:
     # Backend Lint Test
     - echo "🧪 Testing backend..."
@@ -82,14 +82,14 @@ test-all:
     - echo "🧪 Testing frontend..."
     - cd frontend
     - npm ci
-    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - npx eslint src --ext .js,.jsx --max-warnings=0
     - cd ..
 
     # Admin Lint Test
     - echo "🧪 Testing admin..."
     - cd admin
     - npm ci
-    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - npx eslint src --ext .js,.jsx --max-warnings=0
   only:
     - main
 
@@ -101,9 +101,9 @@ deploy-to-render:
   image: curlimages/curl:latest
   script:
     - echo "🚀 Triggering Render Deployments..."
-    - 'curl -X POST "$RENDER_DEPLOY_BACKEND_URL"'
-    - 'curl -X POST "$RENDER_DEPLOY_FRONTEND_URL"'
-    - 'curl -X POST "$RENDER_DEPLOY_ADMIN_URL"'
+    - curl -X POST "$RENDER_DEPLOY_BACKEND_URL"
+    - curl -X POST "$RENDER_DEPLOY_FRONTEND_URL"
+    - curl -X POST "$RENDER_DEPLOY_ADMIN_URL"
   environment:
     name: production
   only:
