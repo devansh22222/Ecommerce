@@ -1,5 +1,4 @@
 
-const Product = require('../model/productSchema')
 
 const uploadImage = (req,res) =>{
     res.json({

@@ -1,6 +1,4 @@
 const jwt = require('jsonwebtoken');
-const User = require('../model/userSchema');
-const cookieParser = require('cookie-parser')
 
 
 const userMiddleware = async (req,res,next)=>{
