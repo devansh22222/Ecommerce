@@ -1,5 +1,6 @@
 # ----------------------------------------------------------
-# GitLab CI/CD for React + Vite Project
+# GitLab CI/CD Pipeline for Ecommerce Project
+# Frontend (React + Vite), Admin (React + Vite), Backend (Node + Express)
 # ----------------------------------------------------------
 
 stages:
@@ -8,55 +9,103 @@ stages:
   - test
   - deploy
 
-# Stage 1: Validate (checks for missing tags, syntax, etc.)
+########################
+# 1️⃣ VALIDATE STAGE
+########################
 validate-code:
   stage: validate
   image: node:18
   script:
+    # Validate Admin
+    - echo "🔍 Running ESLint validation for admin..."
+    - cd admin
     - npm ci
-    - echo "Running ESLint validation..."
-    # ESLint will catch syntax issues like unclosed tags or blocks
+    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - cd ..
+
+    # Validate Frontend
+    - echo "🔍 Running ESLint validation for frontend..."
+    - cd frontend
+    - npm ci
+    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - cd ..
+
+    # Validate Backend
+    - echo "🔍 Running ESLint validation for backend..."
+    - cd backend
+    - npm ci
+    - npx eslint . --ext .js --max-warnings=0
+  only:
+    - main
+
+########################
+# 2️⃣ BUILD STAGE
+########################
+build-apps:
+  stage: build
+  image: node:18
+  script:
+    # Build Admin App
+    - echo "🏗️ Building admin app..."
+    - cd admin
+    - npm ci
+    - npm run build
+    - cd ..
+
+    # Build Frontend App
+    - echo "🏗️ Building frontend app..."
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - admin/dist
+      - frontend/dist
+  only:
+    - main
+
+########################
+# 3️⃣ TEST STAGE
+########################
+test-all:
+  stage: test
+  image: node:18
+  script:
+    # Backend Lint Test
+    - echo "🧪 Testing backend..."
+    - cd backend
+    - npm ci
+    - npx eslint . --ext .js --max-warnings=0
+    - cd ..
+
+    # Frontend Lint Test
+    - echo "🧪 Testing frontend..."
+    - cd frontend
+    - npm ci
+    - npx eslint . --ext .js,.jsx --max-warnings=0
+    - cd ..
+
+    # Admin Lint Test
+    - echo "🧪 Testing admin..."
+    - cd admin
+    - npm ci
     - npx eslint . --ext .js,.jsx --max-warnings=0
   only:
     - main
 
-# Stage 2: Build (builds production files)
-build-vite:
-  stage: build
-  image: node:18
-  script:
-    - npm ci
-    - echo "Building Vite project..."
-    - npm run build
-  artifacts:
-    paths:
-      - dist
-  only:
-    - main
-
-# Stage 3: Test (runs ESLint again to ensure clean code)
-test-lint:
-  stage: test
-  image: node:18
-  script:
-    - npm ci
-    - echo "Running lint test..."
-    - npx eslint src --ext .js,.jsx --max-warnings=0
-  only:
-    - main
-
-# Stage 4: Deploy (to Railway)
-deploy-production:
+########################
+# 4️⃣ DEPLOY STAGE
+########################
+deploy-to-render:
   stage: deploy
-  image: node:18
-  before_script:
-    - npm install -g railway
+  image: curlimages/curl:latest
   script:
-    - echo "Deploying to Railway..."
-    - railway up --service "$RAILWAY_SERVICE_ID" -d
+    - echo "🚀 Triggering Render Deployments..."
+    - 'curl -X POST "$RENDER_DEPLOY_BACKEND_URL"'
+    - 'curl -X POST "$RENDER_DEPLOY_FRONTEND_URL"'
+    - 'curl -X POST "$RENDER_DEPLOY_ADMIN_URL"'
   environment:
     name: production
-    url: $RAILWAY_PUBLIC_URL
   only:
     - main
-  when: manual
+  when: on_success
